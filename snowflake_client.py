@@ -1,31 +1,61 @@
+from __future__ import annotations
+
+import threading
+
 import snowflake.connector
 
 import config
 
 # ---------------------------------------------------------------------------
-# Connection helper
+# Connection helper — shared connection so SSO only prompts once
 # ---------------------------------------------------------------------------
 
-def _connect():
-    return snowflake.connector.connect(
-        account=config.SNOWFLAKE_ACCOUNT,
-        user=config.SNOWFLAKE_USER,
-        password=config.SNOWFLAKE_PASSWORD,
-        warehouse=config.SNOWFLAKE_WAREHOUSE,
-        database=config.SNOWFLAKE_DATABASE,
-    )
+_shared_conn = None
+_conn_lock = threading.Lock()
+
+
+def _get_conn():
+    global _shared_conn
+    with _conn_lock:
+        if _shared_conn is None or _shared_conn.is_closed():
+            _shared_conn = snowflake.connector.connect(
+                account=config.SNOWFLAKE_ACCOUNT,
+                user=config.SNOWFLAKE_USER,
+                authenticator="externalbrowser",
+                warehouse=config.SNOWFLAKE_WAREHOUSE,
+                database=config.SNOWFLAKE_DATABASE,
+            )
+        return _shared_conn
+
+
+def warm_up_connection():
+    """Call once from the main thread to authenticate via SSO before parallel work."""
+    conn = _get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"USE WAREHOUSE {config.SNOWFLAKE_WAREHOUSE}")
+    except Exception:
+        # If the configured warehouse doesn't exist, list available ones and pick the first
+        cur.execute("SHOW WAREHOUSES")
+        warehouses = cur.fetchall()
+        if warehouses:
+            names = [row[0] for row in warehouses]
+            print(f"  Available warehouses: {names}")
+            cur.execute(f'USE WAREHOUSE "{names[0]}"')
+            print(f"  Using warehouse: {names[0]}")
+        else:
+            print("  WARNING: No warehouses available.")
+    cur.execute(f"USE DATABASE {config.SNOWFLAKE_DATABASE}")
+    cur.close()
 
 
 def _query(sql: str, params: dict | None = None) -> list[dict]:
     """Execute *sql* and return rows as a list of dicts."""
-    conn = _connect()
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, params or {})
-        cols = [desc[0] for desc in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
-    finally:
-        conn.close()
+    conn = _get_conn()
+    cur = conn.cursor()
+    cur.execute(sql, params or {})
+    cols = [desc[0] for desc in cur.description]
+    return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
 # ---------------------------------------------------------------------------

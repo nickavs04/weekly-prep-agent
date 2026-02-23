@@ -6,12 +6,12 @@ load_dotenv()
 # Snowflake
 SNOWFLAKE_ACCOUNT = os.environ["SNOWFLAKE_ACCOUNT"]
 SNOWFLAKE_USER = os.environ["SNOWFLAKE_USER"]
-SNOWFLAKE_PASSWORD = os.environ["SNOWFLAKE_PASSWORD"]
+SNOWFLAKE_PASSWORD = os.environ.get("SNOWFLAKE_PASSWORD", "")
 SNOWFLAKE_WAREHOUSE = os.environ["SNOWFLAKE_WAREHOUSE"]
 SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "PROD_DB")
 
-# Anthropic
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+# AWS / Bedrock
+AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")
 
 # Google
 GOOGLE_DOC_ID = os.environ["GOOGLE_DOC_ID"]

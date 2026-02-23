@@ -4,7 +4,7 @@ import anthropic
 
 import config
 
-client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+client = anthropic.AnthropicBedrock(aws_region=config.AWS_REGION)
 
 SYSTEM_PROMPT = """\
 You are a meeting-prep assistant for a customer-facing team. Given structured \
@@ -55,7 +55,7 @@ def generate_meeting_prep(
     )
 
     response = client.messages.create(
-        model="claude-opus-4-6",
+        model="us.anthropic.claude-opus-4-6-v1",
         max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_content}],

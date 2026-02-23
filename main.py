@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import config  # noqa: F401 — forces early .env load & validation
 from calendar_client import get_client_meetings
 from gmail_client import get_recent_threads
-from snowflake_client import get_all_account_data
+from snowflake_client import get_all_account_data, warm_up_connection
 from summarizer import generate_meeting_prep
 from docs_client import append_to_doc
 
@@ -87,6 +87,9 @@ def main() -> None:
     print(f"  Found {len(meetings)} meeting(s) with external attendees.\n")
 
     # 2. Gather Gmail + Snowflake data in parallel
+    print("Authenticating with Snowflake (SSO) …")
+    warm_up_connection()
+    print("  Snowflake connected.\n")
     print("Gathering email threads and Snowflake data …")
     gathered: list[dict] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
